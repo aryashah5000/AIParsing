@@ -1,0 +1,1 @@
+User requests a codebase and flow walkthrough to become an independent contributor. Start with practical PyTorch fundamentals. Repository was inspected statically; training and environment compatibility have not been validated.

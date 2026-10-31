@@ -1,0 +1,22 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>01 · Where learning happens</title><link rel="stylesheet" href="../assets/teaching.css"><main><small>AIPARSING · LEARN BY TRACING</small><h1>01 · Where learning happens</h1>
+<p><strong>Your win:</strong> distinguish building a model, running it, and changing its learned numbers. Allow about six minutes.</p>
+<p>This project performs instance-level human parsing: find individual people and assign part labels within each person's region. We follow the CIHP ResNet-50 configuration.</p>
+<h2>1. A model is a Python object holding learned numbers</h2>
+<p>A tensor is an array of numbers. A parameter is a tensor the model can learn. A PyTorch <code>nn.Module</code> groups parameters and computations. Its <code>__init__</code> builds layers; <code>forward</code> describes computation. Calling <code>model(...)</code> invokes that computation through PyTorch's module machinery. See the <a href="https://docs.pytorch.org/tutorials/beginner/basics/quickstart_tutorial.html">official Quickstart</a>.</p>
+<p>Open <a href="../maskrcnn_benchmark/modeling/detector/generalized_rcnn.py">maskrcnn_benchmark/modeling/detector/generalized_rcnn.py</a>. In <code>__init__</code>, find <code>self.backbone</code>, <code>self.rpn</code>, and <code>self.ParsingHead</code>. These are the three major pieces.</p>
+<div class="flow">image → backbone features → FCOS person boxes → parsing head → part predictions</div>
+<p>The YAML sets <code>FCOS_ON: True</code>. The builder in <code>modeling/rpn/rpn.py</code> therefore selects FCOS despite the attribute name <code>rpn</code>. Follow the selected branch, not the old name.</p>
+<h2>2. Training asks how wrong the predictions were</h2>
+<p>In <code>forward</code>, the backbone processes <code>images.tensors</code>. FCOS returns proposals and detection losses; the parsing head returns parsing-related losses. During training the top-level model combines these into a dictionary. The labels supplied in <code>targets</code> are the known answers.</p>
+<p>Open <a href="../maskrcnn_benchmark/engine/trainer.py">maskrcnn_benchmark/engine/trainer.py</a> and find this sequence:</p>
+<pre>loss_dict = model(images, targets)
+losses = sum(loss for loss in loss_dict.values())
+optimizer.zero_grad()
+losses.backward()
+optimizer.step()</pre>
+<p><code>zero_grad</code> clears accumulated gradients. <code>backward</code> computes gradients: how the loss changes with parameters. <code>step</code> uses those gradients to update parameters. A lower loss is the training objective, not a guarantee of better unseen-image performance. <a href="https://docs.pytorch.org/tutorials/beginner/basics/optimization_tutorial.html">Primary reading: PyTorch optimization</a>.</p>
+<h2>3. Retrieve before revealing</h2>
+<p>Suppose you keep <code>backward()</code> but remove <code>optimizer.step()</code>. Do the parameters get updated by this sequence? Explain which line has which job.</p><textarea aria-label="Your explanation" placeholder="Write your prediction before opening feedback"></textarea>
+<details><summary>Check your reasoning</summary><p>No optimizer update occurs. Backward computes gradients; step applies the update. Model computation and learning are separate operations. Other model state, such as normalization statistics, can still change in training mode.</p></details>
+<p><strong>Code-reading task:</strong> find where <code>model.train()</code> is called. Does that line itself run a training iteration?</p><details><summary>Feedback</summary><p>It is near the start of <code>do_train</code>. It switches module behavior into training mode. The subsequent loop performs the iterations.</p></details>
+<p>Tomorrow, reconstruct the five-line update sequence from memory before rereading. Next: <a href="0002-follow-the-data.html">follow the input and label contracts</a>.</p><hr><p>Ask the agent about anything unclear. Share your exercise answer for feedback before moving on.</p><nav><a href="../lessons/0001-follow-one-training-step.html">Training lesson</a> · <a href="../lessons/0002-follow-the-data.html">Data lesson</a> · <a href="../reference/codebase-map.html">Codebase map & glossary</a></nav></main></html>
