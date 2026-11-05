@@ -78,8 +78,9 @@ def boxlist_soft_nms(boxlist, sigma=0.5, overlap_thresh=0.3, score_thresh=0.001,
     score = boxlist.get_field(score_field).cpu()
     dets = np.hstack((boxes, score[:, np.newaxis])).astype(np.float32, copy=False)
     dets, _ = box_utils.soft_nms(dets, sigma, overlap_thresh, score_thresh, method)
-    boxlist = BoxList(torch.from_numpy(dets[:, :4]).cuda(), boxlist.size, mode="xyxy")
-    boxlist.add_field("scores", torch.from_numpy(dets[:, -1]).cuda())
+    device = boxlist.bbox.device
+    boxlist = BoxList(torch.from_numpy(dets[:, :4]).to(device), boxlist.size, mode="xyxy")
+    boxlist.add_field("scores", torch.from_numpy(dets[:, -1]).to(device))
     return boxlist.convert(mode)
 
 def boxlist_box_voting(top_boxlist, all_boxlist, thresh, scoring_method='ID', beta=1.0, score_field="scores"):
@@ -93,8 +94,9 @@ def boxlist_box_voting(top_boxlist, all_boxlist, thresh, scoring_method='ID', be
     top_dets = np.hstack((top_boxes, top_score[:, np.newaxis])).astype(np.float32, copy=False)
     all_dets = np.hstack((all_boxes, all_score[:, np.newaxis])).astype(np.float32, copy=False)
     dets = box_utils.box_voting(top_dets, all_dets, thresh, scoring_method, beta)
-    boxlist = BoxList(torch.from_numpy(dets[:, :4]).cuda(), all_boxlist.size, mode="xyxy")
-    boxlist.add_field("scores", torch.from_numpy(dets[:, -1]).cuda())
+    device = all_boxlist.bbox.device
+    boxlist = BoxList(torch.from_numpy(dets[:, :4]).to(device), all_boxlist.size, mode="xyxy")
+    boxlist.add_field("scores", torch.from_numpy(dets[:, -1]).to(device))
     return boxlist.convert(mode)
 
 

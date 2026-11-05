@@ -41,6 +41,7 @@ dependencies:
   - pip=21.1.2=py37h06a4308_0
   - python=3.7.0=h6e4f718_3
   - pytorch=1.7.1=py3.7_cuda10.1.243_cudnn7.6.3_0
+  - pycocotools=2.0.2
   - readline=7.0=h7b6447c_5
   - setuptools=52.0.0=py37h06a4308_0
   - six=1.16.0=pyhd3eb1b0_0
@@ -66,7 +67,6 @@ dependencies:
     - jedi==0.18.0
     - joblib==1.0.1
     - matplotlib-inline==0.1.2
-    - mmcv-full==1.2.7
     - numpy==1.21.0
     - opencv-python==4.5.2.54
     - packaging==21.3
@@ -77,14 +77,11 @@ dependencies:
     - prompt-toolkit==3.0.19
     - protobuf==3.20.1
     - ptyprocess==0.7.0
-    - pycocotools==2.0.2
     - pygments==2.9.0
     - pyyaml==5.4.1
     - scipy==1.7.1
     - tensorboardx==2.5.1
     - timm==0.3.2
-    - torch==1.7.1
-    - torchvision==0.8.2
     - tqdm==4.62.3
     - traitlets==5.0.5
     - typing-extensions==3.10.0.0

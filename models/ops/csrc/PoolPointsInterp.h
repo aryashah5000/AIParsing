@@ -8,7 +8,7 @@
 at::Tensor PoolPointsInterp_forward(const at::Tensor& input,
                                     const at::Tensor& rois,
                                     const float spatial_scale) {
-  if (input.type().is_cuda()) {
+  if (input.is_cuda()) {
 #ifdef WITH_CUDA
     return PoolPointsInterp_forward_cuda(input, rois, spatial_scale);
 #else
@@ -24,7 +24,7 @@ at::Tensor PoolPointsInterp_backward(const at::Tensor& grad,
                                      const int channels,
                                      const int height,
                                      const int width) {
-  if (grad.type().is_cuda()) {
+  if (grad.is_cuda()) {
 #ifdef WITH_CUDA
     return PoolPointsInterp_backward_cuda(grad, rois, spatial_scale, batch_size, channels, height, width);
 #else

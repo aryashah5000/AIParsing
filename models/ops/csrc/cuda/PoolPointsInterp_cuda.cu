@@ -1,9 +1,10 @@
 #include <ATen/ATen.h>
 #include <ATen/cuda/CUDAContext.h>
 
-#include <THC/THC.h>
-#include <THC/THCAtomics.cuh>
-#include <THC/THCDeviceUtils.cuh>
+#include <hip/hip_runtime.h>
+
+#define THCCeilDiv(a, b) (((a) + (b) - 1) / (b))
+#define THCudaCheck AT_CUDA_CHECK
 
 #define CUDA_1D_KERNEL_LOOP(i, n)                            \
   for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n; \
@@ -189,8 +190,8 @@ __global__ void PoolPointsInterpBackward(
 at::Tensor PoolPointsInterp_forward_cuda(const at::Tensor& input,
                                    const at::Tensor& rois,
                                    const float spatial_scale) {
-  AT_ASSERTM(input.type().is_cuda(), "input must be a CUDA tensor");
-  AT_ASSERTM(rois.type().is_cuda(), "rois must be a CUDA tensor");
+  AT_ASSERTM(input.is_cuda(), "input must be a CUDA tensor");
+  AT_ASSERTM(rois.is_cuda(), "rois must be a CUDA tensor");
 
   auto num_rois = rois.size(0);
   auto channels = input.size(1);
@@ -209,16 +210,16 @@ at::Tensor PoolPointsInterp_forward_cuda(const at::Tensor& input,
     return output;
   }
 
-  AT_DISPATCH_FLOATING_TYPES(input.type(), "PoolPointsInterp_forward", [&] {
+  AT_DISPATCH_FLOATING_TYPES(input.scalar_type(), "PoolPointsInterp_forward", [&] {
      PoolPointsInterpForward<scalar_t><<<grid, block, 0, stream>>>(
          output_size,
-         input.contiguous().data<scalar_t>(),
+         input.contiguous().data_ptr<scalar_t>(),
          spatial_scale,
          channels,
          height,
          width,
-         rois.contiguous().data<scalar_t>(),
-         output.data<scalar_t>());
+         rois.contiguous().data_ptr<scalar_t>(),
+         output.data_ptr<scalar_t>());
   });
   THCudaCheck(cudaGetLastError());
   return output;
@@ -234,8 +235,8 @@ at::Tensor PoolPointsInterp_backward_cuda(
                                     const int height,
                                     const int width) {
 
-  AT_ASSERTM(grad.type().is_cuda(), "grad must be a CUDA tensor");
-  AT_ASSERTM(rois.type().is_cuda(), "rois must be a CUDA tensor");
+  AT_ASSERTM(grad.is_cuda(), "grad must be a CUDA tensor");
+  AT_ASSERTM(rois.is_cuda(), "rois must be a CUDA tensor");
 
   auto num_rois = rois.size(0);
   auto grad_input = at::zeros({batch_size, channels, height, width}, grad.options());
@@ -251,17 +252,17 @@ at::Tensor PoolPointsInterp_backward_cuda(
     return grad_input;
   }
 
-  AT_DISPATCH_FLOATING_TYPES(grad.type(), "PoolPointsInterp_backward", [&] {
+  AT_DISPATCH_FLOATING_TYPES(grad.scalar_type(), "PoolPointsInterp_backward", [&] {
      PoolPointsInterpBackward<scalar_t><<<grid, block, 0, stream>>>(
          grad.numel(),
-         grad.contiguous().data<scalar_t>(),
+         grad.contiguous().data_ptr<scalar_t>(),
          num_rois,
          spatial_scale,
          channels,
          height,
          width,
-         grad_input.data<scalar_t>(),
-         rois.contiguous().data<scalar_t>());
+         grad_input.data_ptr<scalar_t>(),
+         rois.contiguous().data_ptr<scalar_t>());
   });
   THCudaCheck(cudaGetLastError());
   return grad_input;

@@ -6,7 +6,7 @@ from torch.nn.modules.utils import _pair
 
 from models.ops import _C
 
-from apex import amp
+from utils.amp_compat import amp
 
 
 class _ROIPool(Function):

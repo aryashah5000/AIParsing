@@ -1,6 +1,6 @@
 from models.ops import _C
 
-from apex import amp
+from utils.amp_compat import amp
 
 # Only valid with fp32 inputs - give AMP the hint
 nms = amp.float_function(_C.nms)

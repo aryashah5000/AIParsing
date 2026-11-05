@@ -133,7 +133,9 @@ class EdgesLossComputation(object):
         weight_pos = neg_num/(pos_num+neg_num)
         weight_neg = pos_num/(pos_num+neg_num)
         weights = (weight_neg, weight_pos)  
-        weights = Variable(torch.from_numpy(np.array(weights)).float().cuda())
+        weights = Variable(
+            torch.from_numpy(np.array(weights)).float().to(parsing_logits.device)
+        )
 
         parsing_loss = F.cross_entropy(
             parsing_logits, parsing_targets, weights,reduction="mean"

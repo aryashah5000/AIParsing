@@ -10,7 +10,7 @@
 
 
 #include <ATen/ATen.h>
-#include <THC/THCAtomics.cuh>
+#include <hip/hip_runtime.h>
 #include <stdio.h>
 #include <math.h>
 #include <algorithm>
@@ -87,8 +87,8 @@ __global__ void DeformablePSROIPoolForwardKernel(
     scalar_t roi_end_h = (scalar_t)(round(offset_bottom_rois[4]) + 1.) * spatial_scale - 0.5;
 
     // Force too small ROIs to be 1x1
-    scalar_t roi_width = max(roi_end_w - roi_start_w, 0.1); //avoid 0
-    scalar_t roi_height = max(roi_end_h - roi_start_h, 0.1);
+    scalar_t roi_width = max(roi_end_w - roi_start_w, (scalar_t)0.1); //avoid 0
+    scalar_t roi_height = max(roi_end_h - roi_start_h, (scalar_t)0.1);
 
     // Compute w and h at bottom
     scalar_t bin_size_h = roi_height / (scalar_t)(pooled_height);
@@ -127,8 +127,8 @@ __global__ void DeformablePSROIPoolForwardKernel(
         {
           continue;
         }
-        w = min(max(w, 0.), width - 1.);
-        h = min(max(h, 0.), height - 1.);
+        w = min(max(w, (scalar_t)0.), (scalar_t)width - (scalar_t)1.);
+        h = min(max(h, (scalar_t)0.), (scalar_t)height - (scalar_t)1.);
         int c = (ctop * group_size + gh) * group_size + gw;
         scalar_t val = bilinear_interp(offset_bottom_data + c * height * width, w, h, width, height);
         sum += val;
@@ -180,8 +180,8 @@ __global__ void DeformablePSROIPoolBackwardAccKernel(
     scalar_t roi_end_h = (scalar_t)(round(offset_bottom_rois[4]) + 1.) * spatial_scale - 0.5;
 
     // Force too small ROIs to be 1x1
-    scalar_t roi_width = max(roi_end_w - roi_start_w, 0.1); //avoid 0
-    scalar_t roi_height = max(roi_end_h - roi_start_h, 0.1);
+    scalar_t roi_width = max(roi_end_w - roi_start_w, (scalar_t)0.1); //avoid 0
+    scalar_t roi_height = max(roi_end_h - roi_start_h, (scalar_t)0.1);
 
     // Compute w and h at bottom
     scalar_t bin_size_h = roi_height / (scalar_t)(pooled_height);
@@ -224,8 +224,8 @@ __global__ void DeformablePSROIPoolBackwardAccKernel(
         {
           continue;
         }
-        w = min(max(w, 0.), width - 1.);
-        h = min(max(h, 0.), height - 1.);
+        w = min(max(w, (scalar_t)0.), (scalar_t)width - (scalar_t)1.);
+        h = min(max(h, (scalar_t)0.), (scalar_t)height - (scalar_t)1.);
         int c = (ctop * group_size + gh) * group_size + gw;
         // backward on feature
         int x0 = floor(w);
@@ -289,13 +289,13 @@ void DeformablePSROIPoolForward(const at::Tensor data,
   const int num_classes = no_trans ? 1 : channels_trans / 2;
   const int channels_each_class = no_trans ? output_dim : output_dim / num_classes;
 
-  AT_DISPATCH_FLOATING_TYPES_AND_HALF(
-      data.type(), "deformable_psroi_pool_forward", ([&] {
-        const scalar_t *bottom_data = data.data<scalar_t>();
-        const scalar_t *bottom_rois = bbox.data<scalar_t>();
-        const scalar_t *bottom_trans = no_trans ? NULL : trans.data<scalar_t>();
-        scalar_t *top_data = out.data<scalar_t>();
-        scalar_t *top_count_data = top_count.data<scalar_t>();
+  AT_DISPATCH_FLOATING_TYPES(
+      data.scalar_type(), "deformable_psroi_pool_forward", ([&] {
+        const scalar_t *bottom_data = data.data_ptr<scalar_t>();
+        const scalar_t *bottom_rois = bbox.data_ptr<scalar_t>();
+        const scalar_t *bottom_trans = no_trans ? NULL : trans.data_ptr<scalar_t>();
+        scalar_t *top_data = out.data_ptr<scalar_t>();
+        scalar_t *top_count_data = top_count.data_ptr<scalar_t>();
 
         DeformablePSROIPoolForwardKernel<<<GET_BLOCKS(count), CUDA_NUM_THREADS>>>(
             count, bottom_data, (scalar_t)spatial_scale, channels, height, width, pooled_height, pooled_width,
@@ -340,15 +340,15 @@ void DeformablePSROIPoolBackwardAcc(const at::Tensor out_grad,
   const int num_classes = no_trans ? 1 : channels_trans / 2;
   const int channels_each_class = no_trans ? output_dim : output_dim / num_classes;
 
-  AT_DISPATCH_FLOATING_TYPES_AND_HALF(
-      out_grad.type(), "deformable_psroi_pool_backward_acc", ([&] {
-        const scalar_t *top_diff = out_grad.data<scalar_t>();
-        const scalar_t *bottom_data = data.data<scalar_t>();
-        const scalar_t *bottom_rois = bbox.data<scalar_t>();
-        const scalar_t *bottom_trans = no_trans ? NULL : trans.data<scalar_t>();
-        scalar_t *bottom_data_diff = in_grad.data<scalar_t>();
-        scalar_t *bottom_trans_diff = no_trans ? NULL : trans_grad.data<scalar_t>();
-        const scalar_t *top_count_data = top_count.data<scalar_t>();
+  AT_DISPATCH_FLOATING_TYPES(
+      out_grad.scalar_type(), "deformable_psroi_pool_backward_acc", ([&] {
+        const scalar_t *top_diff = out_grad.data_ptr<scalar_t>();
+        const scalar_t *bottom_data = data.data_ptr<scalar_t>();
+        const scalar_t *bottom_rois = bbox.data_ptr<scalar_t>();
+        const scalar_t *bottom_trans = no_trans ? NULL : trans.data_ptr<scalar_t>();
+        scalar_t *bottom_data_diff = in_grad.data_ptr<scalar_t>();
+        scalar_t *bottom_trans_diff = no_trans ? NULL : trans_grad.data_ptr<scalar_t>();
+        const scalar_t *top_count_data = top_count.data_ptr<scalar_t>();
 
         DeformablePSROIPoolBackwardAccKernel<<<GET_BLOCKS(count), CUDA_NUM_THREADS>>>(
             count, top_diff, top_count_data, num_rois, (scalar_t)spatial_scale, channels, height, width,

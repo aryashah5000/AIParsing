@@ -5,7 +5,7 @@ from torch.autograd.function import once_differentiable
 
 from models.ops import _C
 
-from apex import amp
+from utils.amp_compat import amp
 
 
 class _PoolPointsInterp(Function):

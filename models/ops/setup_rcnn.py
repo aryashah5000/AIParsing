@@ -4,6 +4,7 @@ import glob
 import os
 
 import torch
+import torch.utils.cpp_extension as cpp_extension
 from setuptools import find_packages
 from setuptools import setup
 from torch.utils.cpp_extension import CUDA_HOME
@@ -11,6 +12,10 @@ from torch.utils.cpp_extension import CppExtension
 from torch.utils.cpp_extension import CUDAExtension
 
 requirements = ["torch", "torchvision"]
+
+if torch.version.hip is not None and CUDA_HOME is None:
+    cpp_extension.CUDA_HOME = "/usr"
+    CUDA_HOME = cpp_extension.CUDA_HOME
 
 
 def get_extensions():
@@ -27,16 +32,19 @@ def get_extensions():
     extra_compile_args = {"cxx": []}
     define_macros = []
 
-    if (torch.cuda.is_available() and CUDA_HOME is not None) or os.getenv("FORCE_CUDA", "0") == "1":
+    has_accelerator = torch.cuda.is_available() and CUDA_HOME is not None
+    force_accelerator = os.getenv("FORCE_CUDA", "0") == "1"
+    if has_accelerator or force_accelerator:
         extension = CUDAExtension
         sources += source_cuda
         define_macros += [("WITH_CUDA", None)]
-        extra_compile_args["nvcc"] = [
-            "-DCUDA_HAS_FP16=1",
-            "-D__CUDA_NO_HALF_OPERATORS__",
-            "-D__CUDA_NO_HALF_CONVERSIONS__",
-            "-D__CUDA_NO_HALF2_OPERATORS__",
-        ]
+        if torch.version.hip is None:
+            extra_compile_args["nvcc"] = [
+                "-DCUDA_HAS_FP16=1",
+                "-D__CUDA_NO_HALF_OPERATORS__",
+                "-D__CUDA_NO_HALF_CONVERSIONS__",
+                "-D__CUDA_NO_HALF2_OPERATORS__",
+            ]
 
     sources = [os.path.join(extensions_dir, s) for s in sources]
 

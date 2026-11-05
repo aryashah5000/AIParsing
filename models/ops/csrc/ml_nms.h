@@ -12,7 +12,7 @@ at::Tensor ml_nms(const at::Tensor& dets,
                   const at::Tensor& labels,
                   const float threshold) {
 
-  if (dets.type().is_cuda()) {
+  if (dets.is_cuda()) {
 #ifdef WITH_CUDA
     // TODO raise error if not compiled with CUDA
     if (dets.numel() == 0)
